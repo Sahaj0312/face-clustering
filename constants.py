@@ -8,3 +8,7 @@ CLUSTERING_RESULT_PATH = OUTPUT_DIR
 
 # Create output directory if it doesn't exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Models
+MODEL_DIR = os.path.join(os.getcwd(), 'models')
+TARGET_WIDTH = 1024

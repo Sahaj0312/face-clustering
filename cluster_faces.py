@@ -46,6 +46,8 @@ def create_montage(faces, labelID):
 ap = argparse.ArgumentParser()
 ap.add_argument("-e", "--encodings", required=True,
 	help="path to serialized db of facial encodings")
+ap.add_argument("-l", "--label", required=True,
+	help="path to save labels")
 ap.add_argument("-j", "--jobs", type=int, default=-1,
 	help="# of parallel jobs to run (-1 will use all CPUs)")
 args = vars(ap.parse_args())
@@ -57,7 +59,7 @@ os.makedirs(CLUSTERING_RESULT_PATH, exist_ok=True)
 # disk/encodings pickle file, then extract the set of encodings to so we can cluster on them
 
 print("[INFO] loading encodings...")
-data = pickle.loads(open(args["encodings"], "rb").read())
+data = pickle.loads(open(os.path.join(CLUSTERING_RESULT_PATH, args["encodings"]), "rb").read())
 data = np.array(data)
 encodings = [d["encoding"] for d in data]
 
@@ -68,43 +70,51 @@ print("[INFO] clustering...")
 clt = DBSCAN(metric="euclidean", n_jobs=args["jobs"])
 clt.fit(encodings)
 
-# determine the total number of unique faces found in the dataset
-# clt.labels_ contains the label ID for all faces in our dataset (i.e., which cluster each face belongs to).
-# To find the unique faces/unique label IDs, used NumPy's unique function.
-# The result is a list of unique labelIDs
-labelIDs = np.unique(clt.labels_)
+# save the cluster labels to a separate pickle file
+print("[INFO] saving cluster labels...")
+labels = [{"imagePath": d["imagePath"], "label": labelID} for (labelID, d) in zip(clt.labels_, data)]
+f = open(os.path.join(CLUSTERING_RESULT_PATH, args["label"] + "_labels.pickle"), "wb")
+f.write(pickle.dumps(labels))
+f.close()
 
-# we count the numUniqueFaces . There could potentially be a value of -1 in labelIDs — this value corresponds
-# to the "outlier" class where a 128-d embedding was too far away from any other clusters to be added to it.
-# "outliers" could either be worth examining or simply discarding based on the application of face clustering.
-numUniqueFaces = len(np.where(labelIDs > -1)[0])
-print("[INFO] # unique faces: {}".format(numUniqueFaces))
 
-# loop over the unique face integers
-for labelID in labelIDs:
-	print("[INFO] processing faces for person {}".format(labelID))
-	idxs = np.where(clt.labels_ == labelID)[0]
+# # determine the total number of unique faces found in the dataset
+# # clt.labels_ contains the label ID for all faces in our dataset (i.e., which cluster each face belongs to).
+# # To find the unique faces/unique label IDs, used NumPy's unique function.
+# # The result is a list of unique labelIDs
+# labelIDs = np.unique(clt.labels_)
+
+# # we count the numUniqueFaces . There could potentially be a value of -1 in labelIDs — this value corresponds
+# # to the "outlier" class where a 128-d embedding was too far away from any other clusters to be added to it.
+# # "outliers" could either be worth examining or simply discarding based on the application of face clustering.
+# numUniqueFaces = len(np.where(labelIDs > -1)[0])
+# print("[INFO] # unique faces: {}".format(numUniqueFaces))
+
+# # loop over the unique face integers
+# for labelID in labelIDs:
+# 	print("[INFO] processing faces for person {}".format(labelID))
+# 	idxs = np.where(clt.labels_ == labelID)[0]
 	
-	# initialize the list of faces to include in the montage
-	faces = []
+# 	# initialize the list of faces to include in the montage
+# 	faces = []
 	
-	# loop over all indexes
-	for i in idxs:
-		# load the input image and extract the face ROI
-		image = cv2.imread(data[i]["imagePath"])
-		(top, right, bottom, left) = data[i]["loc"]
-		face = image[top:bottom, left:right]
+# 	# loop over all indexes
+# 	for i in idxs:
+# 		# load the input image and extract the face ROI
+# 		image = cv2.imread(data[i]["imagePath"])
+# 		(top, right, bottom, left) = data[i]["loc"]
+# 		face = image[top:bottom, left:right]
 		
-		# move the full image to the appropriate person folder
-		move_image(image, i, labelID)
+# 		# move the full image to the appropriate person folder
+# 		move_image(image, i, labelID)
 		
-		# resize the face ROI and add it to the faces list for montage
-		face = cv2.resize(face, (96, 96))
-		faces.append(face)
+# 		# resize the face ROI and add it to the faces list for montage
+# 		face = cv2.resize(face, (96, 96))
+# 		faces.append(face)
 	
-	# create and save the montage
-	create_montage(faces, labelID)
+# 	# create and save the montage
+# 	create_montage(faces, labelID)
 
-print("[INFO] Processing complete. Results saved in the 'output' directory.")
-print("[INFO] Each person's images are saved in separate folders named 'person_0', 'person_1', etc.")
-print("[INFO] Montages for each person are saved as 'person_X_montage.jpg'")
+# print("[INFO] Processing complete. Results saved in the 'output' directory.")
+# print("[INFO] Each person's images are saved in separate folders named 'person_0', 'person_1', etc.")
+# print("[INFO] Montages for each person are saved as 'person_X_montage.jpg'")
