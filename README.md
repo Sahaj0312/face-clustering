@@ -1,14 +1,14 @@
 # Face Clustering
 
-A Python-based face clustering system that groups similar faces together using facial encodings and the DBSCAN clustering algorithm. This project helps organize and categorize images containing faces by grouping similar-looking individuals together.
+A Python-based face clustering system that supports multiple face detection and encoding methods, followed by clustering similar faces using the DBSCAN algorithm. This project helps organize and categorize images containing faces by grouping similar-looking individuals together.
 
 ## Features
 
-- Automatically clusters similar faces from a collection of images
-- Creates organized folders for each unique person detected
-- Generates montage images showing all faces in each cluster
-- Handles outlier faces that don't match any clusters
-- Supports parallel processing for improved performance
+- Multiple face detection methods (InsightFace, RetinaFace, AuraFace)
+- Automatic face detection and encoding
+- Face clustering using DBSCAN
+- Performance metrics and timing information
+- Support for large-scale image processing
 
 ## Prerequisites
 
@@ -17,104 +17,177 @@ A Python-based face clustering system that groups similar faces together using f
 - NumPy
 - scikit-learn
 - imutils
-- pickle
+- InsightFace
+- RetinaFace
+- AuraFace
 
-## Installation
+## Face Detection and Encoding Scripts
 
-1. Clone this repository:
+### 1. InsightFace Detection and Encoding
 
-```bash
-cd Face-Clustering
-```
-
-2. Install the required dependencies:
+`insightface_detect_and_encode.py` uses the InsightFace library for both face detection and encoding.
 
 ```bash
-pip install opencv-python numpy scikit-learn imutils
-```
-
-## Project Structure
-
-```
-Face-Clustering/
-├── cluster_faces.py     # Main clustering script
-├── constants.py         # Project constants and paths
-├── encodings.pickle     # Facial encodings database (generated)
-└── output/             # Clustering results
-    ├── person_0/       # Images of person 0
-    ├── person_1/       # Images of person 1
-    ├── ...
-    ├── person_0_montage.jpg  # Montage of person 0's faces
-    ├── person_1_montage.jpg  # Montage of person 1's faces
-    └── unknown_faces_montage.jpg  # Montage of unmatched faces
-```
-
-## Usage
-
-The face clustering process involves two main steps:
-
-### Step 1: Generate Face Encodings
-
-First, you need to generate facial encodings from your image dataset using the `encode_faces.py` script:
-
-```bash
-python encode_faces.py --dataset path/to/your/dataset --encodings output/encodings.pickle --detection_method "cnn"
+python insightface_detect_and_encode.py \
+    --dataset <path_to_folder_containing_images> \
+    --encodings <output_encodings.pickle> \
+    --detections <output_detections.pickle> \
+    --model <path_to_model_directory>
 ```
 
 Arguments:
+- `--dataset`: Directory containing input images
+- `--encodings`: Output file for facial encodings
+- `--detections`: Output file for face detection results
+- `--model`: Path to the InsightFace model directory
 
-- `--dataset`: Path to your input dataset of images
-- `--encodings`: Path where the facial encodings will be saved
-- `--detection_method`: Face detection method to use ("cnn" for better accuracy, "hog" for faster processing)
+Features:
+- Uses SCRFD for face detection
+- Uses ArcFace for facial feature encoding
+- Preserves aspect ratio during processing
+- Outputs timing information for detection and encoding
 
-This step will:
+This can be used to generate embeddings using both buffalo_l and AuraFace models.
 
-1. Scan through all images in your dataset
-2. Detect faces in each image
-3. Generate 128-dimensional facial encodings
-4. Save all encodings to a pickle file
+You can doenload the buffalo_l model from [here](https://github.com/deepinsight/insightface/releases)
 
-### Step 2: Cluster the Faces
+You can download the AuraFace model from [here](https://huggingface.co/fal/AuraFace-v1/tree/main)
 
-Once you have generated the encodings, run the clustering script:
+### Model Names
+
+| Model Name | Detection | Encoding |
+| --- | --- | --- |
+| buffalo_l | det_10g.onnx | w600k_r50.onnx |
+| AuraFace | scrfd_10g_bnkps.onnx | glintr100 |
+
+
+### 2. RetinaFace Detection
+
+`retinaface_detection.py` specializes in face detection using the RetinaFace model.
 
 ```bash
-python cluster_faces.py --encodings output/encodings.pickle --jobs -1
+python retinaface_detection.py \
+    --dataset <path_to_images> \
+    --detections <output_detections.pickle>
 ```
 
 Arguments:
+- `--dataset`: Directory containing input images
+- `--detections`: Output file for face detection results
 
-- `--encodings`: Path to the serialized facial encodings pickle file (required)
-- `--jobs`: Number of parallel jobs to run (-1 uses all CPUs, default: -1)
+Features:
+- High-accuracy face detection
+- Includes confidence scores
+- Extracts facial landmarks
+- Normalizes bounding box coordinates
 
-## Output
+### 3. AuraFace Embeddings
 
-The script will:
+`generate_auraface_embeddings.py` focuses on generating face embeddings using the AuraFace model.
 
-1. Create separate folders for each unique person detected (`person_0`, `person_1`, etc.)
-2. Save individual images in their respective person folders
-3. Generate montage images showing all faces for each person
-4. Create a special montage for faces that couldn't be clustered (outliers)
+```bash
+python generate_auraface_embeddings.py \
+    --detections <input_detections.pickle> \
+    --encodings <output_encodings.pickle>
+```
 
-## How It Works
+Arguments:
+- `--detections`: Input file for face detection containing normalized bounding box locations
+- `--encodings`: Output file for facial encodings
 
-1. The system loads pre-computed facial encodings from a pickle file
-2. Uses DBSCAN (Density-Based Spatial Clustering of Applications with Noise) algorithm to cluster similar faces
-3. Groups faces based on their 128-dimensional facial encodings
-4. Organizes images into folders and creates visual montages
-5. Handles outlier faces that don't match any clusters
+Features:
+- Specialized in facial feature encoding
+- Outputs normalized embeddings
+- Includes processing time metrics
+- Compatible with clustering pipeline
 
-## Notes
+## Face Clustering
 
-- The quality of clustering depends on the quality of input images and facial encodings
-- Adjust DBSCAN parameters if needed for better clustering results
-- The system works best with clear, front-facing facial images
-- Processing time depends on the number of images and CPU cores available
+After generating face encodings using any of the above methods, use `cluster_faces.py` to group similar faces.
+The script uses DBSCAN clustering algorithm to cluster the embeddings.
 
-## License
+```bash
+python cluster_faces.py \
+    --encodings <path_to_encodings.pickle> \
+    --label <output_label> \
+    --jobs -1
+```
 
-[Add your license information here]
+Arguments:
+- `--encodings`: Path to the facial encodings pickle file
+- `--label`: Path to save clustering result labels
+- `--jobs`: Number of parallel jobs (-1 for all CPUs)
+
+## Performace Metrics
+
+### 4. Calculate MAP
+
+`calculate_map.py` provides a way to evaluate the performance of the face detection using the Mean Average Precision (MAP) metric.
+
+The script additionally draws the predicted bounding boxes on the image and saves it in the output folder.
+
+```bash
+python calculate_map.py \
+    --ground_truth <path_to_ground_truth.pickle> \
+    --predictions <path_to_predictions.pickle>
+    --output_folder <output_folder>
+    --label <labels for the predicted bounding boxes>
+    
+```
+
+Arguments:
+- `--ground_truth`: Path to the ground truth detections pickle file
+- `--predictions`: Path to the predicted detections pickle file
+- `--output_folder`: Path to the output folder, where the images with predicted bounding boxes are saved.
+- `--label`: Label for the predicted bounding boxes, printed on the image along with the bounding box.
+
+
+### 5. Compare Clustering
+
+`compare_clustering.py` helps compare the performance of different clustering outputs. This is particularly usefule when comparing model embeddings and their clusterability using DBSCAN.
+
+It prints the Adjusted Rand Index (ARI) and the number of common images compared.
+The Adjusted Rand Index (ARI) helps us measure how accurate a clustering result is by comparing it to the true labels (ground truth).
+In our case, we assume clustering insightface embeddings give us the true labels.
+
+It checks how well the pairs of points are grouped:
+ - Are the same pairs together in both the real and predicted clusters?
+ - Are different pairs also kept apart correctly?
+
+```bash
+python compare_clustering.py \
+    --ground_truth <path_to_ground_truth.pickle> \
+    --predictions <path_to_predictions.pickle>
+```
+
+Arguments:
+- `--ground_truth`: Path to the ground truth clustering labels pickle file
+- `--predictions`: Path to the predicted clustering labels pickle file
+
+
+## Output Structure
+
+```
+output/
+├── encodings/
+│   ├── insightface_encodings.pickle
+│   ├── retinaface_detections.pickle
+│   └── auraface_encodings.pickle
+├   └── auraface_clustering_labels.pickle
+|
+└── montages/
+    ├── person_0_montage.jpg
+    └── person_1_montage.jpg
+```
+
+## Performance Considerations
+
+- InsightFace provides a good balance of accuracy and speed
+- RetinaFace excels at detecting faces in challenging conditions
+- AuraFace focuses on generating high-quality embeddings
+- Processing time varies based on image size and hardware
+- All methods support batch processing for better efficiency
 
 ## Contributing
 
-Feel free to submit issues, fork the repository, and create pull requests for any improvements.
+Contributions are welcome! Please feel free to submit issues and pull requests.
