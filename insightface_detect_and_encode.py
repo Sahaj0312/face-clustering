@@ -32,7 +32,7 @@ ap.add_argument("-e", "--encodings", required=True,
 ap.add_argument("-d", "--detections", required=True,
     help="path to serialized database of facial detections")
 ap.add_argument("-m", "--model", required=True,
-    help="name of the model")
+    help="path to the model directory")
 
 args = vars(ap.parse_args())
 

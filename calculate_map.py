@@ -62,7 +62,7 @@ def process_detections(ground_truth, predictions, output_folder, pred_label, iou
                 'labels': np.ones(len(gt['loc']))
             }
  
-            image = draw_bboxes(image, gt_boxes, color=(0, 255, 0), label=labels['gt'])
+            # image = draw_bboxes(image, gt_boxes, color=(0, 255, 0), label=labels['gt'])
 
             pred_boxes = scale_bbox(np.array(pred['loc']), w, h)
             prediction_dict = {
